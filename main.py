@@ -109,7 +109,12 @@ async def add_knowledge_base(group_id, keyword, question, answer):
             keyword_entry["question"][question] = answer
         else:
             # 如果关键词不存在，创建新的关键词条目
-            data.append({"keyword": keyword, "question": {question: answer}})
+            data.append(
+                {
+                    "keyword": keyword,
+                    "question": {question: answer},
+                }
+            )
 
         return await save_knowledge_base(group_id, data)
     except Exception as e:
@@ -160,11 +165,15 @@ async def manage_knowledge_base(websocket, msg):
             return
 
         # 识别添加知识库命令
-        if re.match(r"添加知识库 .* .* .*|qaadd .* .* .*", raw_message):
-            parts = raw_message.split(" ")
-            keyword = parts[1]
-            question = parts[2]
-            answer = parts[3]
+        match = re.match(
+            r"添加知识库 (.+?) (.+?) (.+)|qaadd (.+?) (.+?) (.+)",
+            raw_message,
+            re.DOTALL,
+        )
+        if match:
+            keyword = match.group(1) or match.group(4)
+            question = match.group(2) or match.group(5)
+            answer = match.group(3) or match.group(6)
             if await add_knowledge_base(group_id, keyword, question, answer):
                 content = (
                     "[CQ:reply,id="
@@ -184,10 +193,10 @@ async def manage_knowledge_base(websocket, msg):
                 return True
 
         # 删除知识库某关键词下的某个问题
-        elif re.match(r"删除知识库 .* .*|qadel .* .*", raw_message):
-            parts = raw_message.split(" ")
-            keyword = parts[1]
-            question = parts[2]
+        match = re.match(r"删除知识库 (.+?) (.+)|qadel (.+?) (.+)", raw_message)
+        if match:
+            keyword = match.group(1) or match.group(3)
+            question = match.group(2) or match.group(4)
             if await delete_knowledge_base(group_id, keyword, question):
                 content = (
                     "[CQ:reply,id="
@@ -204,9 +213,9 @@ async def manage_knowledge_base(websocket, msg):
                 return True
 
         # 删除知识库关键词下所有问题
-        elif re.match(r"删除知识库 .*|qadel .*", raw_message):
-            parts = raw_message.split(" ")
-            keyword = parts[1]
+        match = re.match(r"删除知识库 (.+)|qadel (.+)", raw_message)
+        if match:
+            keyword = match.group(1) or match.group(2)
             if await delete_knowledge_base(group_id, keyword):
                 content = (
                     "[CQ:reply,id="
@@ -233,9 +242,9 @@ async def manage_knowledge_base(websocket, msg):
                 + "删除知识库 关键词 问题\n"
                 + "删除知识库 关键词\n"
                 + "或使用快捷命令：\n"
-                + "qa add 关键词 问题 答案\n"
-                + "qa del 关键词 问题\n"
-                + "qa del 关键词"
+                + "qaadd 关键词 问题 答案\n"
+                + "qadel 关键词 问题\n"
+                + "qadel 关键词"
             )
             await send_group_msg(websocket, group_id, content)
             return True
@@ -260,12 +269,14 @@ async def identify_keyword(websocket, group_id, message_id, raw_message):
         data = await load_knowledge_base(group_id)
         current_time = time.time()
         for item in data:
-            if item["keyword"] in raw_message:
+            if item["keyword"] == raw_message:
                 # 检查关键词触发频率限制
                 last_triggered = keyword_last_triggered.get(item["keyword"], 0)
                 if current_time - last_triggered < KEYWORD_TRIGGER_LIMIT:
-                    logging.info(f"关键词 {item['keyword']} 触发频率过高，跳过")
-                    continue
+                    logging.info(
+                        f"关键词 {item['keyword']} 触发频率过高，当前频率限制：{KEYWORD_TRIGGER_LIMIT}秒，截断本次触发"
+                    )
+                    return
 
                 logging.info(f"识别到关键词: {item['keyword']}")
                 keyword_last_triggered[item["keyword"]] = current_time
@@ -275,7 +286,7 @@ async def identify_keyword(websocket, group_id, message_id, raw_message):
                 )
                 content = (
                     "[CQ:reply,id="
-                    + str(message_id)  # 将 message_id 转换为字符串
+                    + str(message_id)
                     + "]"
                     + "识别到关键词，你可能想问:\n"
                     + question_list
@@ -298,13 +309,8 @@ async def identify_question(websocket, group_id, message_id, raw_message):
         for item in data:
             question = item["question"]
             for q, a in question.items():
-                if q in raw_message:
-                    content = (
-                        "[CQ:reply,id="
-                        + str(message_id)  # 将 message_id 转换为字符串
-                        + "]"
-                        + a
-                    )
+                if q == raw_message:
+                    content = "[CQ:reply,id=" + str(message_id) + "]" + a
                     await send_group_msg(websocket, group_id, content)
                     return True
         logging.info(f"未识别到知识库问题，跳过")
