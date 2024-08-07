@@ -142,13 +142,13 @@ async def manage_knowledge_base(websocket, msg):
         user_id = msg.get("user_id", "")
 
         # 处理开关命令
-        if re.match(r"开启知识库", raw_message):
+        if re.match(r"开启知识库|qaon", raw_message):
             if await toggle_qa_system(user_id, group_id, True):
                 content = "[CQ:reply,id=" + str(message_id) + "] 知识库已开启"
                 await send_group_msg(websocket, group_id, content)
                 return True
 
-        elif re.match(r"关闭知识库", raw_message):
+        elif re.match(r"关闭知识库|qaoff", raw_message):
             if await toggle_qa_system(user_id, group_id, False):
                 content = "[CQ:reply,id=" + str(message_id) + "] 知识库已关闭"
                 await send_group_msg(websocket, group_id, content)
@@ -160,10 +160,11 @@ async def manage_knowledge_base(websocket, msg):
             return
 
         # 识别添加知识库命令
-        if re.match(r"添加知识库 .* .* .*", raw_message):
-            keyword = raw_message.split(" ")[1]
-            question = raw_message.split(" ")[2]
-            answer = raw_message.split(" ")[3]
+        if re.match(r"添加知识库 .* .* .*|qaadd .* .* .*", raw_message):
+            parts = raw_message.split(" ")
+            keyword = parts[1]
+            question = parts[2]
+            answer = parts[3]
             if await add_knowledge_base(group_id, keyword, question, answer):
                 content = (
                     "[CQ:reply,id="
@@ -183,9 +184,10 @@ async def manage_knowledge_base(websocket, msg):
                 return True
 
         # 删除知识库某关键词下的某个问题
-        elif re.match(r"删除知识库 .* .*", raw_message):
-            keyword = raw_message.split(" ")[1]
-            question = raw_message.split(" ")[2]
+        elif re.match(r"删除知识库 .* .*|qadel .* .*", raw_message):
+            parts = raw_message.split(" ")
+            keyword = parts[1]
+            question = parts[2]
             if await delete_knowledge_base(group_id, keyword, question):
                 content = (
                     "[CQ:reply,id="
@@ -202,8 +204,9 @@ async def manage_knowledge_base(websocket, msg):
                 return True
 
         # 删除知识库关键词下所有问题
-        elif re.match(r"删除知识库 .*", raw_message):
-            keyword = raw_message.split(" ")[1]
+        elif re.match(r"删除知识库 .*|qadel .*", raw_message):
+            parts = raw_message.split(" ")
+            keyword = parts[1]
             if await delete_knowledge_base(group_id, keyword):
                 content = (
                     "[CQ:reply,id="
@@ -218,7 +221,7 @@ async def manage_knowledge_base(websocket, msg):
                 return True
 
         # 无效命令的提示
-        elif "知识库" in raw_message:
+        elif "知识库" in raw_message or "qa" in raw_message:
             content = (
                 "[CQ:reply,id="
                 + str(message_id)  # 将 message_id 转换为字符串
@@ -228,7 +231,11 @@ async def manage_knowledge_base(websocket, msg):
                 + "请使用以下命令：\n"
                 + "添加知识库 关键词 问题 答案\n"
                 + "删除知识库 关键词 问题\n"
-                + "删除知识库 关键词"
+                + "删除知识库 关键词\n"
+                + "或使用快捷命令：\n"
+                + "qa add 关键词 问题 答案\n"
+                + "qa del 关键词 问题\n"
+                + "qa del 关键词"
             )
             await send_group_msg(websocket, group_id, content)
             return True
