@@ -154,6 +154,11 @@ async def manage_knowledge_base(websocket, msg):
                 await send_group_msg(websocket, group_id, content)
                 return True
 
+        # 检查知识库是否启用，默认关闭
+        if not load_switch_status_file().get(str(group_id), False):
+            logging.info("知识库已关闭，跳过处理")
+            return
+
         # 识别添加知识库命令
         if re.match(r"添加知识库 .* .* .*", raw_message):
             keyword = raw_message.split(" ")[1]
@@ -313,15 +318,13 @@ async def handle_qasystem_message_group(websocket, msg):
         # 判断是否是管理员或群主或root管理员
         if await is_authorized(role, user_id):
 
-            # 检查知识库是否启用，默认关闭
-            if not load_switch_status_file().get(str(group_id), False):
-                content = "[CQ:reply,id=" + str(message_id) + "] 知识库功能已关闭"
-                await send_group_msg(websocket, group_id, content)
-                return
-
             # 管理知识库
             if await manage_knowledge_base(websocket, msg):
                 return
+
+        # 检查知识库是否启用，默认关闭
+        if not load_switch_status_file().get(str(group_id), False):
+            return
 
         # 识别关键词返回问题
         if await identify_keyword(websocket, group_id, message_id, raw_message):
