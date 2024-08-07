@@ -4,7 +4,7 @@ import os
 import sys
 import json
 import re
-
+import time
 
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -20,41 +20,36 @@ from app.api import *
 from app.config import owner_id
 
 # 开关状态文件路径
-SWITCH_FILE_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "switch_status.json"
-)
-
-# 初始开关状态
-qa_system_enabled = True
+SWITCH_FILE_PATH = os.path.join(DATA_DIR, "switch_status.json")
 
 
 # 读取开关状态
-def load_switch_status():
-    global qa_system_enabled
+def load_switch_status_file():
     try:
         with open(SWITCH_FILE_PATH, "r", encoding="utf-8") as f:
-            status = json.load(f)
-            qa_system_enabled = status.get("qa_system_enabled", True)
+            return json.load(f)
     except FileNotFoundError:
-        pass
+        return {}
 
 
 # 保存开关状态
-def save_switch_status():
+def save_switch_status_file(switch_status):
     try:
         with open(SWITCH_FILE_PATH, "w", encoding="utf-8") as f:
-            json.dump(
-                {"qa_system_enabled": qa_system_enabled},
-                f,
-                ensure_ascii=False,
-                indent=4,
-            )
+            json.dump(switch_status, f, ensure_ascii=False, indent=4)
     except Exception as e:
-        logging.error(f"保存开关状态失败: {e}")
+        logging.error(f"保存开关状态文件失败: {e}")
 
 
-# 在程序启动时加载开关状态
-load_switch_status()
+# 仅root管理员可用的开关控制
+async def toggle_qa_system(user_id, group_id, enable):
+    if user_id in owner_id:
+        switch_status = load_switch_status_file()
+        switch_status[str(group_id)] = enable
+        save_switch_status_file(switch_status)
+        return True
+    else:
+        return False
 
 
 # 是否是群主
@@ -144,6 +139,20 @@ async def manage_knowledge_base(websocket, msg):
         group_id = msg.get("group_id", "")
         message_id = msg.get("message_id", "")
         raw_message = msg.get("raw_message", "")
+        user_id = msg.get("user_id", "")
+
+        # 处理开关命令
+        if re.match(r"开启知识库", raw_message):
+            if await toggle_qa_system(user_id, group_id, True):
+                content = "[CQ:reply,id=" + str(message_id) + "] 知识库已开启"
+                await send_group_msg(websocket, group_id, content)
+                return True
+
+        elif re.match(r"关闭知识库", raw_message):
+            if await toggle_qa_system(user_id, group_id, False):
+                content = "[CQ:reply,id=" + str(message_id) + "] 知识库已关闭"
+                await send_group_msg(websocket, group_id, content)
+                return True
 
         # 识别添加知识库命令
         if re.match(r"添加知识库 .* .* .*", raw_message):
@@ -228,13 +237,26 @@ async def manage_knowledge_base(websocket, msg):
         return False
 
 
+# 关键词触发频率限制
+KEYWORD_TRIGGER_LIMIT = 60  # 每个关键词每分钟最多触发一次
+keyword_last_triggered = {}
+
+
 # 识别关键词返回问题
 async def identify_keyword(websocket, group_id, message_id, raw_message):
     try:
         data = await load_knowledge_base(group_id)
+        current_time = time.time()
         for item in data:
             if item["keyword"] in raw_message:
+                # 检查关键词触发频率限制
+                last_triggered = keyword_last_triggered.get(item["keyword"], 0)
+                if current_time - last_triggered < KEYWORD_TRIGGER_LIMIT:
+                    logging.info(f"关键词 {item['keyword']} 触发频率过高，跳过")
+                    continue
+
                 logging.info(f"识别到关键词: {item['keyword']}")
+                keyword_last_triggered[item["keyword"]] = current_time
                 question = item["question"]
                 question_list = "\n".join(
                     [f"{i}. {q}" for i, (q, a) in enumerate(question.items(), 1)]
@@ -250,12 +272,10 @@ async def identify_keyword(websocket, group_id, message_id, raw_message):
                 )
                 await send_group_msg(websocket, group_id, content)
                 return True
-            else:
-                logging.info(f"未识别到知识库关键词，跳过")
-                return False
-
+        logging.info(f"未识别到知识库关键词，跳过")
+        return False
     except Exception as e:
-        logging.error(f"识别关键词异常: {e}")
+        logging.error(f"识别知识库关键词异常: {e}")
         return False
 
 
@@ -275,20 +295,11 @@ async def identify_question(websocket, group_id, message_id, raw_message):
                     )
                     await send_group_msg(websocket, group_id, content)
                     return True
+        logging.info(f"未识别到知识库问题，跳过")
         return False
     except Exception as e:
-        logging.error(f"识别问题返回答案异常: {e}")
+        logging.error(f"识别知识库问题返回答案异常: {e}")
         return False
-
-
-# 仅root管理员可用的开关控制
-async def toggle_qa_system(user_id, enable):
-    if user_id in owner_id:
-        global qa_system_enabled
-        qa_system_enabled = enable
-        save_switch_status()
-        return True
-    return False
 
 
 async def handle_qasystem_message_group(websocket, msg):
@@ -301,31 +312,20 @@ async def handle_qasystem_message_group(websocket, msg):
 
         # 判断是否是管理员或群主或root管理员
         if await is_authorized(role, user_id):
+
+            # 检查知识库是否启用，默认关闭
+            if not load_switch_status_file().get(str(group_id), False):
+                content = "[CQ:reply,id=" + str(message_id) + "] 知识库功能已关闭"
+                await send_group_msg(websocket, group_id, content)
+                return
+
             # 管理知识库
             if await manage_knowledge_base(websocket, msg):
                 return
 
-            # 处理开关命令
-            if re.match(r"开启知识库", raw_message):
-                if await toggle_qa_system(user_id, True):
-                    content = "[CQ:reply,id=" + str(message_id) + "] 知识库已开启"
-                    await send_group_msg(websocket, group_id, content)
-                    return True
-
-            elif re.match(r"关闭知识库", raw_message):
-                if await toggle_qa_system(user_id, False):
-                    content = "[CQ:reply,id=" + str(message_id) + "] 知识库已关闭"
-                    await send_group_msg(websocket, group_id, content)
-                    return True
-
-        # 检查知识库是否启用
-        if not qa_system_enabled:
-            content = "[CQ:reply,id=" + str(message_id) + "] 知识库功能已关闭"
-            await send_group_msg(websocket, group_id, content)
-            return False
-
         # 识别关键词返回问题
-        await identify_keyword(websocket, group_id, message_id, raw_message)
+        if await identify_keyword(websocket, group_id, message_id, raw_message):
+            return True  # 识别到关键词返回问题，防止继续往下识别出符合条件的答案
 
         # 识别问题返回答案
         await identify_question(websocket, group_id, message_id, raw_message)
