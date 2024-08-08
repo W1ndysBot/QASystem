@@ -145,15 +145,22 @@ async def manage_knowledge_base(websocket, msg):
         message_id = msg.get("message_id", "")
         raw_message = msg.get("raw_message", "")
         user_id = msg.get("user_id", "")
+        role = msg.get("role", "")
+
+        is_admin = is_group_admin(role)  # 是否是群管理员
+        is_owner = is_group_owner(role)  # 是否是群主
+        is_authorized = (is_admin or is_owner) or (
+            user_id in owner_id
+        )  # 是否是群主或管理员或root管理员
 
         # 处理开关命令
-        if re.match(r"开启知识库|qaon", raw_message):
+        if re.match(r"开启知识库|qaon", raw_message) and is_authorized:
             if await toggle_qa_system(user_id, group_id, True):
                 content = "[CQ:reply,id=" + str(message_id) + "] 知识库已开启"
                 await send_group_msg(websocket, group_id, content)
                 return True
 
-        elif re.match(r"关闭知识库|qaoff", raw_message):
+        elif re.match(r"关闭知识库|qaoff", raw_message) and is_authorized:
             if await toggle_qa_system(user_id, group_id, False):
                 content = "[CQ:reply,id=" + str(message_id) + "] 知识库已关闭"
                 await send_group_msg(websocket, group_id, content)
@@ -170,7 +177,7 @@ async def manage_knowledge_base(websocket, msg):
             raw_message,
             re.DOTALL,
         )
-        if match:
+        if match and is_authorized:
             keyword = match.group(1) or match.group(4)
             question = match.group(2) or match.group(5)
             answer = match.group(3) or match.group(6)
@@ -194,7 +201,7 @@ async def manage_knowledge_base(websocket, msg):
 
         # 删除知识库某关键词下的某个问题
         match = re.match(r"删除知识库 (.+?) (.+)|qadel (.+?) (.+)", raw_message)
-        if match:
+        if match and is_authorized:
             keyword = match.group(1) or match.group(3)
             question = match.group(2) or match.group(4)
             if await delete_knowledge_base(group_id, keyword, question):
@@ -214,7 +221,7 @@ async def manage_knowledge_base(websocket, msg):
 
         # 删除知识库关键词下所有问题
         match = re.match(r"删除知识库 (.+)|qadel (.+)", raw_message)
-        if match:
+        if match and is_authorized:
             keyword = match.group(1) or match.group(2)
             if await delete_knowledge_base(group_id, keyword):
                 content = (
@@ -237,7 +244,7 @@ async def manage_knowledge_base(websocket, msg):
             or "qadel" == raw_message
             or "添加知识库" == raw_message
             or "删除知识库" == raw_message
-        ):
+        ) and is_authorized:
             content = (
                 "[CQ:reply,id="
                 + str(message_id)  # 将 message_id 转换为字符串
@@ -333,14 +340,9 @@ async def handle_qasystem_message_group(websocket, msg):
         group_id = msg.get("group_id", "")
         message_id = msg.get("message_id", "")
         raw_message = msg.get("raw_message", "")
-        role = msg.get("role", "")
 
-        # 判断是否是管理员或群主或root管理员
-        if is_authorized(role, user_id):
-
-            # 管理知识库
-            if await manage_knowledge_base(websocket, msg):
-                return
+        # 管理知识库
+        await manage_knowledge_base(websocket, msg)
 
         # 检查知识库是否启用，默认关闭
         if not load_switch_status_file().get(str(group_id), False):
