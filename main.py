@@ -230,7 +230,14 @@ async def manage_knowledge_base(websocket, msg):
                 return True
 
         # 无效命令的提示
-        elif "知识库" in raw_message or "qa" in raw_message:
+        elif (
+            "知识库" == raw_message
+            or "qa" == raw_message
+            or "qaadd" == raw_message
+            or "qadel" == raw_message
+            or "添加知识库" == raw_message
+            or "删除知识库" == raw_message
+        ):
             content = (
                 "[CQ:reply,id="
                 + str(message_id)  # 将 message_id 转换为字符串
