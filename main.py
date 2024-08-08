@@ -145,7 +145,7 @@ async def manage_knowledge_base(websocket, msg):
         message_id = msg.get("message_id", "")
         raw_message = msg.get("raw_message", "")
         user_id = msg.get("user_id", "")
-        role = msg.get("role", "")
+        role = msg.get("sender", {}).get("role", "")
 
         is_admin = is_group_admin(role)  # 是否是群管理员
         is_owner = is_group_owner(role)  # 是否是群主
