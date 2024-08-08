@@ -96,25 +96,27 @@ async def save_knowledge_base(group_id, data):
 
 
 # 添加知识库
-async def add_knowledge_base(group_id, keyword, question, answer):
+async def add_knowledge_base(group_id, keywords, question, answer):
     try:
         data = await load_knowledge_base(group_id)
+        keyword_list = keywords.split("|")  # 分割多个关键词
 
-        # 查找是否已有相同的关键词
-        keyword_entry = next(
-            (item for item in data if item["keyword"] == keyword), None
-        )
-        if keyword_entry:
-            # 如果关键词已存在，添加或更新问题和答案
-            keyword_entry["question"][question] = answer
-        else:
-            # 如果关键词不存在，创建新的关键词条目
-            data.append(
-                {
-                    "keyword": keyword,
-                    "question": {question: answer},
-                }
+        for keyword in keyword_list:
+            # 查找是否已有相同的关键词
+            keyword_entry = next(
+                (item for item in data if item["keyword"] == keyword), None
             )
+            if keyword_entry:
+                # 如果关键词已存在，添加或更新问题和答案
+                keyword_entry["question"][question] = answer
+            else:
+                # 如果关键词不存在，创建新的关键词条目
+                data.append(
+                    {
+                        "keyword": keyword,
+                        "question": {question: answer},
+                    }
+                )
 
         return await save_knowledge_base(group_id, data)
     except Exception as e:
@@ -178,17 +180,17 @@ async def manage_knowledge_base(websocket, msg):
             re.DOTALL,
         )
         if match and is_authorized:
-            keyword = match.group(1) or match.group(4)
+            keywords = match.group(1) or match.group(4)
             question = match.group(2) or match.group(5)
             answer = match.group(3) or match.group(6)
-            if await add_knowledge_base(group_id, keyword, question, answer):
+            if await add_knowledge_base(group_id, keywords, question, answer):
                 content = (
                     "[CQ:reply,id="
                     + str(message_id)  # 将 message_id 转换为字符串
                     + "]"
                     + "添加成功\n"
                     + "关键词："
-                    + keyword
+                    + keywords
                     + "\n"
                     + "问题："
                     + question
@@ -282,7 +284,7 @@ async def identify_keyword(websocket, group_id, message_id, raw_message):
         data = await load_knowledge_base(group_id)
         current_time = time.time()
         for item in data:
-            if item["keyword"] in raw_message:
+            if any(keyword in raw_message for keyword in item["keyword"].split("|")):
                 # 检查关键词触发频率限制
                 last_triggered = keyword_last_triggered.get(item["keyword"], 0)
                 if current_time - last_triggered < KEYWORD_TRIGGER_LIMIT:
