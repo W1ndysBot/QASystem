@@ -53,19 +53,19 @@ async def toggle_qa_system(user_id, group_id, enable):
 
 
 # 是否是群主
-async def is_group_owner(role):
+def is_group_owner(role):
     return role == "owner"
 
 
 # 是否是管理员
-async def is_group_admin(role):
+def is_group_admin(role):
     return role == "admin"
 
 
 # 是否是管理员或群主或root管理员
-async def is_authorized(role, user_id):
-    is_admin = await is_group_admin(role)
-    is_owner = await is_group_owner(role)
+def is_authorized(role, user_id):
+    is_admin = is_group_admin(role)
+    is_owner = is_group_owner(role)
     return (is_admin or is_owner) or (user_id in owner_id)
 
 
@@ -336,7 +336,7 @@ async def handle_qasystem_message_group(websocket, msg):
         role = msg.get("role", "")
 
         # 判断是否是管理员或群主或root管理员
-        if await is_authorized(role, user_id):
+        if is_authorized(role, user_id):
 
             # 管理知识库
             if await manage_knowledge_base(websocket, msg):
