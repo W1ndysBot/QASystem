@@ -269,12 +269,12 @@ async def identify_keyword(websocket, group_id, message_id, raw_message):
         data = await load_knowledge_base(group_id)
         current_time = time.time()
         for item in data:
-            if item["keyword"] == raw_message:
+            if item["keyword"] in raw_message:
                 # 检查关键词触发频率限制
                 last_triggered = keyword_last_triggered.get(item["keyword"], 0)
                 if current_time - last_triggered < KEYWORD_TRIGGER_LIMIT:
                     logging.info(
-                        f"关键词 {item['keyword']} 触发频率过高，当前频率限制：{KEYWORD_TRIGGER_LIMIT}秒，截断本次触发"
+                        f"关键词 {item['keyword']} 触发频率过高，剩余：{KEYWORD_TRIGGER_LIMIT - (current_time - last_triggered)}秒解锁，截断本次触发"
                     )
                     return
 
