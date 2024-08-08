@@ -239,7 +239,6 @@ async def manage_knowledge_base(websocket, msg):
         # 无效命令的提示
         elif (
             "知识库" == raw_message
-            or "qa" == raw_message
             or "qaadd" == raw_message
             or "qadel" == raw_message
             or "添加知识库" == raw_message
