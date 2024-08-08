@@ -169,7 +169,7 @@ async def manage_knowledge_base(websocket, msg):
         # 检查知识库是否启用，默认关闭
         if not load_switch_status_file().get(str(group_id), False):
             logging.info("知识库已关闭，跳过处理")
-            return
+            return True
 
         # 识别添加知识库命令
         match = re.match(
@@ -341,7 +341,8 @@ async def handle_qasystem_message_group(websocket, msg):
         raw_message = msg.get("raw_message", "")
 
         # 管理知识库
-        await manage_knowledge_base(websocket, msg)
+        if await manage_knowledge_base(websocket, msg):
+            return
 
         # 检查知识库是否启用，默认关闭
         if not load_switch_status_file().get(str(group_id), False):
@@ -349,7 +350,7 @@ async def handle_qasystem_message_group(websocket, msg):
 
         # 识别关键词返回问题
         if await identify_keyword(websocket, group_id, message_id, raw_message):
-            return True  # 识别到关键词返回问题，防止继续往下识别出符合条件的答案
+            return  # 识别到关键词返回问题，防止继续往下识别出符合条件的答案
 
         # 识别问题返回答案
         await identify_question(websocket, group_id, message_id, raw_message)
