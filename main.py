@@ -21,7 +21,7 @@ DATA_DIR = os.path.join(
 
 from app.api import *
 from app.config import owner_id
-from app.scripts.GroupSwitch.main import load_switch, save_switch
+from app.switch import load_switch, save_switch
 
 
 # 检查是否是群主
