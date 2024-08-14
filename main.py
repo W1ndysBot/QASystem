@@ -244,14 +244,12 @@ async def identify_keyword(websocket, group_id, message_id, raw_message):
                     logging.info(f"识别到关键词: {item['keyword']}")
                     keyword_last_triggered[item["keyword"]] = current_time
                     question = item["question"]
-                    question_list = "\n".join(
-                        [f"{i}. {q}" for i, (q, a) in enumerate(question.items(), 1)]
-                    )
+                    question_list = "\n".join([f"{q}" for q, a in question.items()])
                     content = (
                         f"[CQ:reply,id={message_id}]"
-                        + "识别到关键词，你可能想问:\n"
+                        + "识别到关键词，你可能想问:\n\n"
                         + question_list
-                        + "\n"
+                        + "\n\n"
                         + "如有需要请发送上述问题关键词"
                     )
                     await send_group_msg(websocket, group_id, content)
