@@ -272,6 +272,9 @@ async def identify_question(websocket, group_id, message_id, raw_message):
                 for q, a in question.items():
                     if q == raw_message:
                         logging.info(f"识别到问题: {q}")
+                        a = a.replace("&#91;", "[").replace(
+                            "&#93;", "]"
+                        )  # 替换特殊字符
                         content = f"[CQ:reply,id={message_id}]" + a
                         await send_group_msg(websocket, group_id, content)
                         return
