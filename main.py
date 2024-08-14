@@ -244,6 +244,17 @@ async def identify_keyword(websocket, group_id, message_id, raw_message):
                     logging.info(f"识别到关键词: {item['keyword']}")
                     keyword_last_triggered[item["keyword"]] = current_time
                     question = item["question"]
+
+                    # 优化：直接返回完全匹配的问题答案
+                    if raw_message in question:
+                        answer = question[raw_message]
+                        answer = answer.replace("&#91;", "[").replace(
+                            "&#93;", "]"
+                        )  # 替换特殊字符
+                        content = f"[CQ:reply,id={message_id}]" + answer
+                        await send_group_msg(websocket, group_id, content)
+                        return
+
                     question_list = "\n".join([f"{q}" for q, a in question.items()])
                     content = (
                         f"[CQ:reply,id={message_id}]"
@@ -275,7 +286,7 @@ async def identify_question(websocket, group_id, message_id, raw_message):
                         )  # 替换特殊字符
                         content = f"[CQ:reply,id={message_id}]" + a
                         await send_group_msg(websocket, group_id, content)
-                        return
+                        return True  # 返回True表示识别到问题
             return False
     except Exception as e:
         logging.error(f"识别知识库问题返回答案异常: {e}")
@@ -284,24 +295,27 @@ async def identify_question(websocket, group_id, message_id, raw_message):
 
 async def handle_qasystem_message_group(websocket, msg):
     try:
-
         group_id = msg.get("group_id", "")
         message_id = msg.get("message_id", "")
         raw_message = msg.get("raw_message", "")
         user_id = msg.get("user_id", "")
         role = msg.get("sender", {}).get("role", "")
 
-        asyncio.gather(
-            manage_knowledge_base(
-                websocket, group_id, message_id, raw_message, user_id, role
-            ),  # 管理知识库
-            identify_keyword(
-                websocket, group_id, message_id, raw_message
-            ),  # 识别关键词返回问题
-            identify_question(
-                websocket, group_id, message_id, raw_message
-            ),  # 识别问题返回答案
+        # 先尝试识别问题
+        question_identified = await identify_question(
+            websocket, group_id, message_id, raw_message
         )
+
+        # 如果没有识别到问题，再尝试识别关键词
+        if not question_identified:
+            await asyncio.gather(
+                manage_knowledge_base(
+                    websocket, group_id, message_id, raw_message, user_id, role
+                ),  # 管理知识库
+                identify_keyword(
+                    websocket, group_id, message_id, raw_message
+                ),  # 识别关键词返回问题
+            )
 
     except Exception as e:
         logging.error(f"知识库处理消息异常: {e}")
