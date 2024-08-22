@@ -219,7 +219,7 @@ async def manage_knowledge_base(
 
 
 # 关键词触发频率限制
-KEYWORD_TRIGGER_LIMIT = 120  # 每个关键词每2分钟最多触发一次
+KEYWORD_TRIGGER_LIMIT = 300  # 每个关键词每5分钟最多触发一次
 keyword_last_triggered = {}
 
 
