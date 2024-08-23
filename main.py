@@ -261,7 +261,8 @@ async def identify_keyword(websocket, group_id, message_id, raw_message):
                         + "识别到关键词，你可能想问:\n\n"
                         + question_list
                         + "\n\n"
-                        + "如有需要请发送上述问题关键词"
+                        + "如有需要请发送上述问题\n"
+                        + "不用艾特，直接发送问题"
                     )
                     await send_group_msg(websocket, group_id, content)
                     return
