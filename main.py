@@ -288,8 +288,9 @@ async def identify_question(websocket, group_id, message_id, raw_message):
             data = cursor.fetchall()
             conn.close()
 
-            best_match = None
+            best_matches = []
             highest_similarity = 0.0
+            similarity_threshold = 0.05  # 设置一个相似度差异阈值
 
             raw_message_keywords = extract_keywords(raw_message)
 
@@ -297,19 +298,18 @@ async def identify_question(websocket, group_id, message_id, raw_message):
                 similarity = calculate_similarity(raw_message_keywords, keywords)
                 if similarity > highest_similarity:
                     highest_similarity = similarity
-                    best_match = (question, answer)
+                    best_matches = [(question, answer, similarity)]
+                elif highest_similarity - similarity <= similarity_threshold:
+                    best_matches.append((question, answer, similarity))
 
-            if best_match and highest_similarity > 0.5:  # 设置一个相似度阈值
-                logging.info(f"识别到问题: {best_match[0]}")
-                answer = (
-                    best_match[1].replace("&#91;", "[").replace("&#93;", "]")
-                )  # 替换特殊字符
-                content = (
-                    f"[CQ:reply,id={message_id}]"
-                    + answer
-                    + "\n\n[+]与数据库匹配相似度："
-                    + str(highest_similarity)
-                )
+            if best_matches and highest_similarity > 0.5:  # 设置一个相似度阈值
+                logging.info(f"识别到问题: {best_matches[0][0]}")
+                content = f"[CQ:reply,id={message_id}]"
+                for match in best_matches:
+                    answer = (
+                        match[1].replace("&#91;", "[").replace("&#93;", "]")
+                    )  # 替换特殊字符
+                    content += f"{answer}\n\n[+]与数据库匹配相似度：{match[2]}\n\n"
                 await send_group_msg(websocket, group_id, content)
                 return True  # 返回True表示识别到问题
             return False
