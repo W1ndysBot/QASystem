@@ -7,7 +7,7 @@ import time
 import asyncio
 import sqlite3
 import jieba
-from difflib import SequenceMatcher
+from Levenshtein import distance as levenshtein_distance  # 引入Levenshtein距离
 
 # 添加系统路径
 sys.path.append(
@@ -68,7 +68,10 @@ def is_authorized(role, user_id):
 
 # 计算编辑距离
 def calculate_similarity(a, b):
-    return SequenceMatcher(None, a, b).ratio()
+    max_len = max(len(a), len(b))
+    if max_len == 0:
+        return 1.0  # 两个空字符串相似度为1
+    return 1 - levenshtein_distance(a, b) / max_len  # 归一化相似度
 
 
 # 提取关键词并排序
