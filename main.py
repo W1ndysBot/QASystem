@@ -329,31 +329,6 @@ async def identify_question(websocket, group_id, message_id, raw_message):
         return False
 
 
-async def handle_qasystem_message_group(websocket, msg):
-    try:
-        group_id = msg.get("group_id", "")
-        message_id = msg.get("message_id", "")
-        raw_message = msg.get("raw_message", "")
-        user_id = msg.get("user_id", "")
-        role = msg.get("sender", {}).get("role", "")
-
-        # 初始化数据库
-        init_db(group_id)
-
-        # 先尝试管理知识库
-        management_handled = await manage_knowledge_base(
-            websocket, group_id, message_id, raw_message, user_id, role
-        )
-
-        # 如果不是管理命令，再尝试识别问题
-        if not management_handled:
-            await identify_question(websocket, group_id, message_id, raw_message)
-
-    except Exception as e:
-        logging.error(f"知识库处理消息异常: {e}")
-        return False
-
-
 # 识别比较两个词语相似度命令
 async def compare_similarity(websocket, group_id, message_id, raw_message):
     try:
@@ -375,4 +350,30 @@ async def compare_similarity(websocket, group_id, message_id, raw_message):
         return False
     except Exception as e:
         logging.error(f"比较词语相似度失败: {e}")
+        return False
+
+
+# 知识库处理消息
+async def handle_qasystem_message_group(websocket, msg):
+    try:
+        group_id = str(msg.get("group_id", ""))
+        message_id = str(msg.get("message_id", ""))
+        raw_message = str(msg.get("raw_message", ""))
+        user_id = str(msg.get("user_id", ""))
+        role = str(msg.get("sender", {}).get("role", ""))
+
+        # 初始化数据库
+        init_db(group_id)
+
+        # 先尝试管理知识库
+        management_handled = await manage_knowledge_base(
+            websocket, group_id, message_id, raw_message, user_id, role
+        )
+
+        # 如果不是管理命令，再尝试识别问题
+        if not management_handled:
+            await identify_question(websocket, group_id, message_id, raw_message)
+
+    except Exception as e:
+        logging.error(f"知识库处理消息异常: {e}")
         return False
