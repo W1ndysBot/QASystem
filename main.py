@@ -14,7 +14,6 @@ sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 
-
 # 设置数据库路径
 def get_db_path(group_id):
     return os.path.join(
@@ -24,11 +23,9 @@ def get_db_path(group_id):
         f"{group_id}_qa_system.db",
     )
 
-
 from app.api import *
 from app.config import owner_id
 from app.switch import load_switch, save_switch
-
 
 # 初始化数据库
 def init_db(group_id):
@@ -48,23 +45,19 @@ def init_db(group_id):
     conn.commit()
     conn.close()
 
-
 # 检查是否是群主
 def is_group_owner(role):
     return role == "owner"
 
-
 # 检查是否是管理员
 def is_group_admin(role):
     return role == "admin"
-
 
 # 检查是否有权限（管理员、群主或root管理员）
 def is_authorized(role, user_id):
     is_admin = is_group_admin(role)
     is_owner = is_group_owner(role)
     return (is_admin or is_owner) or (user_id in owner_id)
-
 
 # 计算编辑距离
 def calculate_similarity(a, b):
@@ -73,12 +66,10 @@ def calculate_similarity(a, b):
         return 1.0  # 两个空字符串相似度为1
     return 1 - levenshtein_distance(a, b) / max_len  # 归一化相似度
 
-
 # 提取关键词并排序
 def extract_keywords(text):
     keywords = jieba.cut(text)
     return " ".join(sorted(keywords))
-
 
 # 异步添加问答对
 async def add_qa_pair(group_id, question, answer):
@@ -98,7 +89,6 @@ async def add_qa_pair(group_id, question, answer):
         logging.error(f"添加问答对失败: {e}")
         return False
 
-
 # 异步删除问答对
 async def delete_qa_pair(group_id, question):
     try:
@@ -112,7 +102,6 @@ async def delete_qa_pair(group_id, question):
     except Exception as e:
         logging.error(f"删除问答对失败: {e}")
         return False
-
 
 # 异步更新问答对
 async def update_qa_pair(group_id, question, new_answer):
@@ -132,7 +121,6 @@ async def update_qa_pair(group_id, question, new_answer):
         logging.error(f"更新问答对失败: {e}")
         return False
 
-
 # 异步查看问答对列表
 async def list_QASystem(group_id):
     try:
@@ -146,7 +134,6 @@ async def list_QASystem(group_id):
     except Exception as e:
         logging.error(f"查看问答对列表失败: {e}")
         return []
-
 
 # 管理知识库命令处理
 async def manage_knowledge_base(
@@ -169,7 +156,7 @@ async def manage_knowledge_base(
                         group_id,
                         f"[CQ:reply,id={message_id}] 知识库已开启",
                     )
-                return  # 确保处理完命令后返回
+                return True  # 确保处理完命令后返回
 
             elif raw_message.startswith("qa-off"):
                 if not load_switch(group_id, "知识库"):
@@ -185,7 +172,7 @@ async def manage_knowledge_base(
                         group_id,
                         f"[CQ:reply,id={message_id}] 知识库已关闭",
                     )
-                return  # 确保处理完命令后返回
+                return True  # 确保处理完命令后返回
 
             # 处理批量添加问答对命令
             if raw_message.startswith("qa-add"):
@@ -208,7 +195,7 @@ async def manage_knowledge_base(
                     + f"批量添加完成，成功添加了 {success_count} 条问答对。"
                 )
                 await send_group_msg(websocket, group_id, content)
-                return  # 确保处理完命令后返回
+                return True  # 确保处理完命令后返回
 
             # 识别删除问答对命令
             match = re.match(r"qa-rm(.+)", raw_message)
@@ -222,7 +209,7 @@ async def manage_knowledge_base(
                         + question
                     )
                     await send_group_msg(websocket, group_id, content)
-                return  # 确保处理完命令后返回
+                return True  # 确保处理完命令后返回
 
             # 识别更新问答对命令
             match = re.match(r"qa-update(.+?) (.+)", raw_message, re.DOTALL)
@@ -240,7 +227,7 @@ async def manage_knowledge_base(
                         + new_answer
                     )
                     await send_group_msg(websocket, group_id, content)
-                return  # 确保处理完命令后返回
+                return True  # 确保处理完命令后返回
 
             # 识别查看问答对列表命令
             if raw_message.startswith("qa-list"):
@@ -264,18 +251,20 @@ async def manage_knowledge_base(
                         )
                         message_content = ""  # 重置消息内容，为下一个节点准备
                 await send_forward_msg(websocket, group_id, messages)
-                return  # 确保处理完命令后返回
+                return True  # 确保处理完命令后返回
 
             # 识别比较两个词语相似度命令
             if raw_message.startswith("qa-solo"):
                 if await compare_similarity(
                     websocket, group_id, message_id, raw_message
                 ):
-                    return  # 确保处理完命令后返回
+                    return True  # 确保处理完命令后返回
 
     except Exception as e:
         logging.error(f"管理知识库失败: {e}")
         return False
+
+    return False  # 如果不属于管理命令，则返回False，继续识别问题
 
 # 识别问题返回答案
 async def identify_question(websocket, group_id, message_id, raw_message):
@@ -312,7 +301,29 @@ async def identify_question(websocket, group_id, message_id, raw_message):
         logging.error(f"识别知识库问题返回答案异常: {e}")
         return False
 
+async def handle_qasystem_message_group(websocket, msg):
+    try:
+        group_id = msg.get("group_id", "")
+        message_id = msg.get("message_id", "")
+        raw_message = msg.get("raw_message", "")
+        user_id = msg.get("user_id", "")
+        role = msg.get("sender", {}).get("role", "")
 
+        # 初始化数据库
+        init_db(group_id)
+
+        # 先尝试管理知识库
+        management_handled = await manage_knowledge_base(
+            websocket, group_id, message_id, raw_message, user_id, role
+        )
+
+        # 如果不是管理命令，再尝试识别问题
+        if not management_handled:
+            await identify_question(websocket, group_id, message_id, raw_message)
+
+    except Exception as e:
+        logging.error(f"知识库处理消息异常: {e}")
+        return False
 
 # 识别比较两个词语相似度命令
 async def compare_similarity(websocket, group_id, message_id, raw_message):
