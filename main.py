@@ -187,26 +187,27 @@ async def manage_knowledge_base(
                     )
                 return  # 确保处理完命令后返回
 
-            # 识别添加问答对命令
-            match = re.match(
-                r"qa-add(.+?) (.+)",
-                raw_message,
-                re.DOTALL,
-            )
-            if match:
-                question = match.group(1)
-                answer = match.group(2)
-                if await add_qa_pair(group_id, question, answer):
-                    content = (
-                        f"[CQ:reply,id={message_id}]"
-                        + "添加成功\n"
-                        + "问题："
-                        + question
-                        + "\n"
-                        + "答案："
-                        + answer
+            # 处理批量添加问答对命令
+            if raw_message.startswith("qa-add"):
+                lines = raw_message.splitlines()
+                success_count = 0
+                for line in lines:
+                    match = re.match(
+                        r"qa-add(.+?) (.+)",
+                        line.strip(),
+                        re.DOTALL,
                     )
-                    await send_group_msg(websocket, group_id, content)
+                    if match:
+                        question = match.group(1).strip()
+                        answer = match.group(2).strip()
+                        if await add_qa_pair(group_id, question, answer):
+                            success_count += 1
+
+                content = (
+                    f"[CQ:reply,id={message_id}]"
+                    + f"批量添加完成，成功添加了 {success_count} 条问答对。"
+                )
+                await send_group_msg(websocket, group_id, content)
                 return  # 确保处理完命令后返回
 
             # 识别删除问答对命令
@@ -275,7 +276,6 @@ async def manage_knowledge_base(
     except Exception as e:
         logging.error(f"管理知识库失败: {e}")
         return False
-
 
 # 识别问题返回答案
 async def identify_question(websocket, group_id, message_id, raw_message):
