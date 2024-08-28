@@ -14,6 +14,7 @@ sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 
+
 # 设置数据库路径
 def get_db_path(group_id):
     return os.path.join(
@@ -23,9 +24,11 @@ def get_db_path(group_id):
         f"{group_id}_qa_system.db",
     )
 
+
 from app.api import *
 from app.config import owner_id
 from app.switch import load_switch, save_switch
+
 
 # 初始化数据库
 def init_db(group_id):
@@ -45,19 +48,23 @@ def init_db(group_id):
     conn.commit()
     conn.close()
 
+
 # 检查是否是群主
 def is_group_owner(role):
     return role == "owner"
 
+
 # 检查是否是管理员
 def is_group_admin(role):
     return role == "admin"
+
 
 # 检查是否有权限（管理员、群主或root管理员）
 def is_authorized(role, user_id):
     is_admin = is_group_admin(role)
     is_owner = is_group_owner(role)
     return (is_admin or is_owner) or (user_id in owner_id)
+
 
 # 计算编辑距离
 def calculate_similarity(a, b):
@@ -66,10 +73,12 @@ def calculate_similarity(a, b):
         return 1.0  # 两个空字符串相似度为1
     return 1 - levenshtein_distance(a, b) / max_len  # 归一化相似度
 
+
 # 提取关键词并排序
 def extract_keywords(text):
     keywords = jieba.cut(text)
     return " ".join(sorted(keywords))
+
 
 # 异步添加问答对
 async def add_qa_pair(group_id, question, answer):
@@ -89,6 +98,7 @@ async def add_qa_pair(group_id, question, answer):
         logging.error(f"添加问答对失败: {e}")
         return False
 
+
 # 异步删除问答对
 async def delete_qa_pair(group_id, question):
     try:
@@ -102,6 +112,7 @@ async def delete_qa_pair(group_id, question):
     except Exception as e:
         logging.error(f"删除问答对失败: {e}")
         return False
+
 
 # 异步更新问答对
 async def update_qa_pair(group_id, question, new_answer):
@@ -121,6 +132,7 @@ async def update_qa_pair(group_id, question, new_answer):
         logging.error(f"更新问答对失败: {e}")
         return False
 
+
 # 异步查看问答对列表
 async def list_QASystem(group_id):
     try:
@@ -134,6 +146,7 @@ async def list_QASystem(group_id):
     except Exception as e:
         logging.error(f"查看问答对列表失败: {e}")
         return []
+
 
 # 管理知识库命令处理
 async def manage_knowledge_base(
@@ -266,6 +279,7 @@ async def manage_knowledge_base(
 
     return False  # 如果不属于管理命令，则返回False，继续识别问题
 
+
 # 识别问题返回答案
 async def identify_question(websocket, group_id, message_id, raw_message):
     try:
@@ -288,7 +302,7 @@ async def identify_question(websocket, group_id, message_id, raw_message):
                     highest_similarity = similarity
                     best_match = (question, answer, similarity)
 
-            if best_match and highest_similarity > 0.45:  # 设置一个相似度阈值
+            if best_match and highest_similarity > 0.6:  # 设置一个相似度阈值
                 logging.info(f"识别到问题: {best_match[0]}")
                 answer = (
                     best_match[1].replace("&#91;", "[").replace("&#93;", "]")
@@ -300,6 +314,7 @@ async def identify_question(websocket, group_id, message_id, raw_message):
     except Exception as e:
         logging.error(f"识别知识库问题返回答案异常: {e}")
         return False
+
 
 async def handle_qasystem_message_group(websocket, msg):
     try:
@@ -325,10 +340,11 @@ async def handle_qasystem_message_group(websocket, msg):
         logging.error(f"知识库处理消息异常: {e}")
         return False
 
+
 # 识别比较两个词语相似度命令
 async def compare_similarity(websocket, group_id, message_id, raw_message):
     try:
-        match = re.match(r"qa-solo (.+?) (.+)", raw_message)
+        match = re.match(r"qa-solo(.+?) (.+)", raw_message)
         if match:
             word1 = match.group(1)
             word2 = match.group(2)
