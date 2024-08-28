@@ -302,7 +302,7 @@ async def identify_question(websocket, group_id, message_id, raw_message):
                 elif highest_similarity - similarity <= similarity_threshold:
                     best_matches.append((question, answer, similarity))
 
-            if best_matches and highest_similarity > 0.35:  # 设置一个相似度阈值
+            if best_matches and highest_similarity > 0.45:  # 设置一个相似度阈值
                 logging.info(f"识别到问题: {best_matches[0][0]}")
                 content = f"[CQ:reply,id={message_id}]"
                 for match in best_matches:
