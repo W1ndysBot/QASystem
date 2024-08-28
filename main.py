@@ -313,32 +313,6 @@ async def identify_question(websocket, group_id, message_id, raw_message):
         return False
 
 
-async def handle_qasystem_message_group(websocket, msg):
-    try:
-        group_id = msg.get("group_id", "")
-        message_id = msg.get("message_id", "")
-        raw_message = msg.get("raw_message", "")
-        user_id = msg.get("user_id", "")
-        role = msg.get("sender", {}).get("role", "")
-
-        # 初始化数据库
-        init_db(group_id)
-
-        # 先尝试识别问题
-        question_identified = await identify_question(
-            websocket, group_id, message_id, raw_message
-        )
-
-        # 如果没有识别到问题，再尝试管理知识库
-        if not question_identified:
-            await manage_knowledge_base(
-                websocket, group_id, message_id, raw_message, user_id, role
-            )
-
-    except Exception as e:
-        logging.error(f"知识库处理消息异常: {e}")
-        return False
-
 
 # 识别比较两个词语相似度命令
 async def compare_similarity(websocket, group_id, message_id, raw_message):
