@@ -293,7 +293,7 @@ async def identify_question(websocket, group_id, message_id, raw_message):
                 answer = (
                     best_match[1].replace("&#91;", "[").replace("&#93;", "]")
                 )  # 替换特殊字符
-                content = f"[CQ:reply,id={message_id}]{answer}\n\n[+]与数据库匹配相似度：{best_match[2]}\n"
+                content = f"[CQ:reply,id={message_id}]{answer}\n\n[+]与数据库匹配相似度：{best_match[2]}\n[+]技术支持：W1ndys"
                 await send_group_msg(websocket, group_id, content)
                 return True  # 返回True表示识别到问题
             return False
