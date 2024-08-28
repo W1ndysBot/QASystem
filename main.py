@@ -73,10 +73,17 @@ def calculate_similarity(a, b):
     return 1 - levenshtein_distance(a, b) / max_len  # 归一化相似度
 
 
-# 提取关键词并排序
+# 搜索引擎模式
 def extract_keywords(text):
-    keywords = jieba.cut(text)
+    keywords = jieba.cut_for_search(text)  # 使用搜索引擎模式分词
     return " ".join(sorted(keywords))
+
+
+# 计算最高相似度
+def calculate_highest_similarity(text1, text2):
+    keywords1 = extract_keywords(text1)
+    keywords2 = extract_keywords(text2)
+    return calculate_similarity(keywords1, keywords2)
 
 
 # 异步添加问答对
@@ -245,7 +252,12 @@ async def manage_knowledge_base(
             if raw_message.startswith("qa-list"):
                 QASystem = await list_QASystem(group_id)
                 messages = []
-                message_content = "[CQ:reply,id={message_id}] 知识库问答对列表：\n"
+                await send_group_msg(
+                    websocket,
+                    group_id,
+                    f"[CQ:at,qq={user_id}] 知识库问答对列表加载中...",
+                )
+                message_content = ""
                 for index, (question, answer) in enumerate(QASystem):
                     message_content += f"问题：{question}\n答案：{answer}\n\n"
                     if (index + 1) % 5 == 0 or index == len(
