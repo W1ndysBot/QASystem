@@ -86,22 +86,22 @@ def calculate_highest_similarity(text1, text2):
     return calculate_similarity(keywords1, keywords2)
 
 
-# 异步添加问答对
-async def add_qa_pair(group_id, question, answer):
+# 异步添加或更新问答对
+async def add_or_update_qa_pair(group_id, question, answer):
     try:
         keywords = extract_keywords(question)
         db_path = get_db_path(group_id)
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO QASystem (question, answer, keywords) VALUES (?, ?, ?)",
+            "INSERT OR REPLACE INTO QASystem (question, answer, keywords) VALUES (?, ?, ?)",
             (question, answer, keywords),
         )
         conn.commit()
         conn.close()
         return True
     except Exception as e:
-        logging.error(f"添加问答对失败: {e}")
+        logging.error(f"添加或更新问答对失败: {e}")
         return False
 
 
@@ -117,25 +117,6 @@ async def delete_qa_pair(group_id, question):
         return True
     except Exception as e:
         logging.error(f"删除问答对失败: {e}")
-        return False
-
-
-# 异步更新问答对
-async def update_qa_pair(group_id, question, new_answer):
-    try:
-        keywords = extract_keywords(question)
-        db_path = get_db_path(group_id)
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE QASystem SET answer = ?, keywords = ? WHERE question = ?",
-            (new_answer, keywords, question),
-        )
-        conn.commit()
-        conn.close()
-        return True
-    except Exception as e:
-        logging.error(f"更新问答对失败: {e}")
         return False
 
 
@@ -193,7 +174,7 @@ async def manage_knowledge_base(
                     )
                 return True  # 确保处理完命令后返回
 
-            # 处理批量添加问答对命令
+            # 处理批量添加或更新问答对命令
             if raw_message.startswith("qa-add"):
                 lines = raw_message.splitlines()
                 success_count = 0
@@ -206,12 +187,12 @@ async def manage_knowledge_base(
                     if match:
                         question = match.group(1).strip()
                         answer = match.group(2).strip()
-                        if await add_qa_pair(group_id, question, answer):
+                        if await add_or_update_qa_pair(group_id, question, answer):
                             success_count += 1
 
                 content = (
                     f"[CQ:reply,id={message_id}]"
-                    + f"批量添加完成，成功添加了 {success_count} 条问答对。"
+                    + f"批量添加或更新完成，成功处理了 {success_count} 条问答对。"
                 )
                 await send_group_msg(websocket, group_id, content)
                 return True  # 确保处理完命令后返回
@@ -226,24 +207,6 @@ async def manage_knowledge_base(
                         + "删除成功\n"
                         + "问题："
                         + question
-                    )
-                    await send_group_msg(websocket, group_id, content)
-                return True  # 确保处理完命令后返回
-
-            # 识别更新问答对命令
-            match = re.match(r"qa-update(.+?) (.+)", raw_message, re.DOTALL)
-            if match:
-                question = match.group(1)
-                new_answer = match.group(2)
-                if await update_qa_pair(group_id, question, new_answer):
-                    content = (
-                        f"[CQ:reply,id={message_id}]"
-                        + "更新成功\n"
-                        + "问题："
-                        + question
-                        + "\n"
-                        + "新答案："
-                        + new_answer
                     )
                     await send_group_msg(websocket, group_id, content)
                 return True  # 确保处理完命令后返回
@@ -320,7 +283,7 @@ async def identify_question(websocket, group_id, message_id, raw_message):
                 )  # 替换特殊字符
                 # 处理换行符
                 answer = answer.replace("\\n", "\n")
-                content = f"[CQ:reply,id={message_id}]{answer}\n\n[+]与数据库匹配相似度：{best_match[2]}\n[+]技术支持：easy-qfnu.top"
+                content = f"[CQ:reply,id={message_id}]匹配到的问题：{best_match[0]}\n\n{answer}\n\n[+]与数据库匹配相似度：{best_match[2]}\n[+]技术支持：easy-qfnu.top"
                 await send_group_msg(websocket, group_id, content)
                 return True  # 返回True表示识别到问题
             return False

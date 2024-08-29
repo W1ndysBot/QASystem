@@ -18,6 +18,8 @@ qa-solo 对比两个句子的相似度
 
 ## 更新日志
 
+2024 年 8 月 30 日，合并 add 和 update 命令，当添加问答对时，如果问题已存在，则更新问答对，在回答中，增加匹配到的问题，防止有时候引起歧义
+
 2024 年 8 月 27 日，引入 jieba 中文分词和莱文斯坦距离，优化关键词识别逻辑，当收到消息时，连接数据库并查询所有的问题、答案和关键词 (SELECT question, answer, keywords FROM QASystem)。使用 jieba 库对用户发送的消息进行分词并提取关键词 (extract_keywords(raw_message))。遍历数据库中的所有问题，计算用户消息的关键词与数据库中每个问题的关键词的相似度 (calculate_similarity(raw_message_keywords, keywords))。记录相似度最高的问题和答案。如果相似度超过设定的阈值，则认为找到了匹配的问题。
 
 2024 年 8 月 23 日，优化关键词触发之后的提示语
