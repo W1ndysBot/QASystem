@@ -86,7 +86,7 @@ def calculate_highest_similarity(text1, text2):
     return calculate_similarity(keywords1, keywords2)
 
 
-# 异步添加或更新问答对
+# 添加或更新问答对
 async def add_or_update_qa_pair(group_id, question, answer):
     try:
         keywords = extract_keywords(question)
@@ -105,7 +105,7 @@ async def add_or_update_qa_pair(group_id, question, answer):
         return False
 
 
-# 异步删除问答对
+# 删除问答对
 async def delete_qa_pair(group_id, question):
     try:
         db_path = get_db_path(group_id)
@@ -120,7 +120,7 @@ async def delete_qa_pair(group_id, question):
         return False
 
 
-# 异步查看问答对列表
+# 查看问答对列表
 async def list_QASystem(group_id):
     try:
         db_path = get_db_path(group_id)
