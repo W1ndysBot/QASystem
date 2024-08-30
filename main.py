@@ -1,10 +1,7 @@
 import logging
 import os
 import sys
-import json
 import re
-import time
-import asyncio
 import sqlite3
 import jieba
 from Levenshtein import distance as levenshtein_distance  # 引入Levenshtein距离
@@ -73,17 +70,19 @@ def calculate_similarity(a, b):
     return 1 - levenshtein_distance(a, b) / max_len  # 归一化相似度
 
 
-# 搜索引擎模式
+# 分词
 def extract_keywords(text):
-    keywords = jieba.cut_for_search(text)  # 使用搜索引擎模式分词
-    return " ".join(sorted(keywords))
+    keywords = jieba.lcut(text)  # 使用全模式分词
+    return " ".join(sorted(keywords))  # 返回排序后的字符串
 
 
-# 计算最高相似度
+# 计算最高相似度,text1是用户输入,text2是数据库中的问题
 def calculate_highest_similarity(text1, text2):
-    keywords1 = extract_keywords(text1)
-    keywords2 = extract_keywords(text2)
-    return calculate_similarity(keywords1, keywords2)
+    keywords1 = extract_keywords(text1).split()
+    keywords2 = extract_keywords(text2).split()
+
+    # 计算编辑距离相似度
+    return calculate_similarity(" ".join(keywords1), " ".join(keywords2))
 
 
 # 添加或更新问答对
@@ -265,13 +264,36 @@ async def identify_question(websocket, group_id, message_id, raw_message):
             data = cursor.fetchall()
             conn.close()
 
+            raw_message_keywords = extract_keywords(raw_message).split()
+
+            for question, answer, keywords in data:
+                db_keywords = keywords.split()
+                match_count = sum(
+                    1 for keyword in db_keywords if keyword in raw_message_keywords
+                )
+                match_ratio = match_count / len(db_keywords)
+
+                # 检查局部包含关系，设置匹配比例阈值
+                if match_ratio >= 0.5:
+                    logging.info(f"局部匹配到问题: {question}")
+                    answer = (
+                        answer.replace("&#91;", "[")
+                        .replace("&#93;", "]")
+                        .replace("\\n", "\n")
+                    )
+                    content = f"[CQ:reply,id={message_id}]匹配到的问题：{question}\n{answer}\n\n[+]匹配通道：局部包含关系匹配\n[+]与数据库匹配相似度：{match_ratio}\n[+]技术支持：easy-qfnu.top"
+                    await send_group_msg(websocket, group_id, content)
+                    return True
+
+            # 如果没有局部匹配成功，再计算总体相似度
             best_match = None
             highest_similarity = 0.0
 
-            raw_message_keywords = extract_keywords(raw_message)
-
             for question, answer, keywords in data:
-                similarity = calculate_similarity(raw_message_keywords, keywords)
+                db_keywords = keywords.split()
+                similarity = calculate_highest_similarity(
+                    " ".join(raw_message_keywords), " ".join(db_keywords)
+                )
                 if similarity > highest_similarity:
                     highest_similarity = similarity
                     best_match = (question, answer, similarity)
@@ -279,11 +301,12 @@ async def identify_question(websocket, group_id, message_id, raw_message):
             if best_match and highest_similarity > 0.6:  # 设置一个相似度阈值
                 logging.info(f"识别到问题: {best_match[0]}")
                 answer = (
-                    best_match[1].replace("&#91;", "[").replace("&#93;", "]")
-                )  # 替换特殊字符
-                # 处理换行符
-                answer = answer.replace("\\n", "\n")
-                content = f"[CQ:reply,id={message_id}]匹配到的问题：{best_match[0]}\n\n{answer}\n\n[+]与数据库匹配相似度：{best_match[2]}\n[+]技术支持：easy-qfnu.top"
+                    best_match[1]
+                    .replace("&#91;", "[")
+                    .replace("&#93;", "]")
+                    .replace("\\n", "\n")
+                )
+                content = f"[CQ:reply,id={message_id}]匹配到的问题：{best_match[0]}\n{answer}\n\n[+]匹配通道：总体相似度匹配\n[+]与数据库匹配相似度：{best_match[2]}\n[+]技术支持：easy-qfnu.top"
                 await send_group_msg(websocket, group_id, content)
                 return True  # 返回True表示识别到问题
             return False
