@@ -281,7 +281,7 @@ async def identify_question(websocket, group_id, message_id, raw_message):
                         .replace("&#93;", "]")
                         .replace("\\n", "\n")
                     )
-                    content = f"[CQ:reply,id={message_id}]匹配到的问题：{question}\n{answer}\n\n[+]匹配通道：局部包含关系匹配\n[+]与数据库匹配相似度：{match_ratio}\n[+]技术支持：easy-qfnu.top"
+                    content = f"[CQ:reply,id={message_id}]匹配到的问题：{question}\n\n{answer}\n\n[+]匹配通道：局部包含关系匹配\n[+]与数据库匹配相似度：{match_ratio}\n[+]技术支持：easy-qfnu.top"
                     await send_group_msg(websocket, group_id, content)
                     return True
 
