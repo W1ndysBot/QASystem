@@ -279,7 +279,7 @@ async def identify_question(websocket, group_id, message_id, raw_message):
                     highest_similarity = similarity
                     best_match = (question, answer, similarity)
 
-            if best_match and highest_similarity > 0.6:  # 设置一个相似度阈值
+            if best_match and highest_similarity > 0.75:  # 设置一个相似度阈值
                 logging.info(f"识别到问题: {best_match[0]}")
                 answer = (
                     best_match[1]
