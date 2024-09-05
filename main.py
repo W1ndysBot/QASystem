@@ -266,26 +266,7 @@ async def identify_question(websocket, group_id, message_id, raw_message):
 
             raw_message_keywords = extract_keywords(raw_message).split()
 
-            for question, answer, keywords in data:
-                db_keywords = keywords.split()
-                match_count = sum(
-                    1 for keyword in db_keywords if keyword in raw_message_keywords
-                )
-                match_ratio = match_count / len(db_keywords)
-
-                # 检查局部包含关系，设置匹配比例阈值
-                if match_ratio >= 0.8:
-                    logging.info(f"局部匹配到问题: {question}")
-                    answer = (
-                        answer.replace("&#91;", "[")
-                        .replace("&#93;", "]")
-                        .replace("\\n", "\n")
-                    )
-                    content = f"[CQ:reply,id={message_id}]匹配到的问题：{question}\n\n{answer}\n\n[+]匹配通道：局部包含关系匹配\n[+]与数据库匹配相似度：{match_ratio}\n[+]技术支持：easy-qfnu.top"
-                    await send_group_msg(websocket, group_id, content)
-                    return True
-
-            # 如果没有局部匹配成功，再计算总体相似度
+            # 先计算总体相似度
             best_match = None
             highest_similarity = 0.0
 
@@ -309,6 +290,27 @@ async def identify_question(websocket, group_id, message_id, raw_message):
                 content = f"[CQ:reply,id={message_id}]匹配到的问题：{best_match[0]}\n{answer}\n\n[+]匹配通道：总体相似度匹配\n[+]与数据库匹配相似度：{best_match[2]}\n[+]技术支持：easy-qfnu.top"
                 await send_group_msg(websocket, group_id, content)
                 return True  # 返回True表示识别到问题
+
+            # 如果没有总体相似度匹配成功，再计算局部包含关系
+            for question, answer, keywords in data:
+                db_keywords = keywords.split()
+                match_count = sum(
+                    1 for keyword in db_keywords if keyword in raw_message_keywords
+                )
+                match_ratio = match_count / len(db_keywords)
+
+                # 检查局部包含关系，设置匹配比例阈值
+                if match_ratio >= 0.8:
+                    logging.info(f"局部匹配到问题: {question}")
+                    answer = (
+                        answer.replace("&#91;", "[")
+                        .replace("&#93;", "]")
+                        .replace("\\n", "\n")
+                    )
+                    content = f"[CQ:reply,id={message_id}]匹配到的问题：{question}\n\n{answer}\n\n[+]匹配通道：局部包含关系匹配\n[+]与数据库匹配相似度：{match_ratio}\n[+]技术支持：easy-qfnu.top"
+                    await send_group_msg(websocket, group_id, content)
+                    return True
+
             return False
     except Exception as e:
         logging.error(f"识别知识库问题返回答案异常: {e}")
