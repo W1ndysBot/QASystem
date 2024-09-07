@@ -341,6 +341,22 @@ async def compare_similarity(websocket, group_id, message_id, raw_message):
         return False
 
 
+# 问答系统菜单
+async def QASystem(websocket, group_id, message_id):
+    message = (
+        f"[CQ:reply,id={message_id}]\n"
+        + """
+问答系统
+
+qa-on 开启问答系统
+qa-off 关闭问答系统
+qa-add 添加问答
+qa-rm 删除问答
+"""
+    )
+    await send_group_msg(websocket, group_id, message)
+
+
 # 知识库处理消息
 async def handle_qasystem_message_group(websocket, msg):
     try:
@@ -352,6 +368,9 @@ async def handle_qasystem_message_group(websocket, msg):
 
         # 初始化数据库
         init_db(group_id)
+
+        if raw_message == "qasystem":
+            await QASystem(websocket, group_id, message_id)
 
         # 先尝试管理知识库
         management_handled = await manage_knowledge_base(
