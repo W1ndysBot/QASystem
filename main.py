@@ -191,7 +191,7 @@ async def manage_knowledge_base(
 
                 content = (
                     f"[CQ:reply,id={message_id}]"
-                    + f"批量添加或更新完成，成功处理了 {success_count} 条问答对。"
+                    + f"批量添加或更新完成，成功处理了 {success_count} 条问答对，请注意：问题长度不宜过短，否则可能导致判定容错降低，导致出现无关匹配，过短的词条请使用完全匹配的关键词回复系统，发送“keywordsreply”查看。"
                 )
                 await send_group_msg(websocket, group_id, content)
                 return True  # 确保处理完命令后返回
