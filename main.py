@@ -300,7 +300,7 @@ async def identify_question(websocket, group_id, message_id, raw_message):
                 match_ratio = match_count / len(db_keywords)
 
                 # 检查局部包含关系，设置匹配比例阈值
-                if match_ratio >= 0.8:
+                if match_ratio >= 0.66:
                     logging.info(f"局部匹配到问题: {question}")
                     answer = (
                         answer.replace("&#91;", "[")
