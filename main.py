@@ -141,7 +141,7 @@ async def manage_knowledge_base(
     try:
         if is_authorized(role, user_id):
             # 处理开关命令
-            if raw_message.startswith("qa-on"):
+            if raw_message.startswith("qaon"):
                 if load_switch(group_id, "知识库"):
                     await send_group_msg(
                         websocket,
@@ -157,7 +157,7 @@ async def manage_knowledge_base(
                     )
                 return True  # 确保处理完命令后返回
 
-            elif raw_message.startswith("qa-off"):
+            elif raw_message.startswith("qaoff"):
                 if not load_switch(group_id, "知识库"):
                     await send_group_msg(
                         websocket,
@@ -174,12 +174,12 @@ async def manage_knowledge_base(
                 return True  # 确保处理完命令后返回
 
             # 处理批量添加或更新问答对命令
-            if raw_message.startswith("qa-add"):
+            if raw_message.startswith("qaadd"):
                 lines = raw_message.splitlines()
                 success_count = 0
                 for line in lines:
                     match = re.match(
-                        r"qa-add(.+?) (.+)",
+                        r"qaadd(.+?) (.+)",
                         line.strip(),
                         re.DOTALL,
                     )
@@ -197,7 +197,7 @@ async def manage_knowledge_base(
                 return True  # 确保处理完命令后返回
 
             # 识别删除问答对命令
-            match = re.match(r"qa-rm(.+)", raw_message)
+            match = re.match(r"qarm(.+)", raw_message)
             if match:
                 question = match.group(1)
                 if await delete_qa_pair(group_id, question):
@@ -211,7 +211,7 @@ async def manage_knowledge_base(
                 return True  # 确保处理完命令后返回
 
             # 识别查看问答对列表命令
-            if raw_message.startswith("qa-list"):
+            if raw_message.startswith("qalist"):
                 QASystem = await list_QASystem(group_id)
                 messages = []
                 await send_group_msg(
@@ -240,7 +240,7 @@ async def manage_knowledge_base(
                 return True  # 确保处理完命令后返回
 
             # 识别比较两个词语相似度命令
-            if raw_message.startswith("qa-solo"):
+            if raw_message.startswith("qasolo"):
                 if await compare_similarity(
                     websocket, group_id, message_id, raw_message
                 ):
@@ -320,7 +320,7 @@ async def identify_question(websocket, group_id, message_id, raw_message):
 # 识别比较两个词语相似度命令
 async def compare_similarity(websocket, group_id, message_id, raw_message):
     try:
-        match = re.match(r"qa-solo(.+?) (.+)", raw_message)
+        match = re.match(r"qasolo(.+?) (.+)", raw_message)
         if match:
             word1 = match.group(1)
             word2 = match.group(2)
@@ -348,10 +348,10 @@ async def QASystem(websocket, group_id, message_id):
         + """
 问答系统
 
-qa-on 开启问答系统
-qa-off 关闭问答系统
-qa-add 添加问答
-qa-rm 删除问答
+qaon 开启问答系统
+qaoff 关闭问答系统
+qaadd 添加问答
+qarm 删除问答
 """
     )
     await send_group_msg(websocket, group_id, message)
