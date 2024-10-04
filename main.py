@@ -175,19 +175,16 @@ async def manage_knowledge_base(
 
             # 处理批量添加或更新问答对命令
             if raw_message.startswith("qaadd"):
-                lines = raw_message.splitlines()
+                entries = raw_message.split("qaadd")[1:]  # 去掉第一个空元素
                 success_count = 0
-                for line in lines:
-                    match = re.match(
-                        r"qaadd(.+?) (.+)",
-                        line.strip(),
-                        re.DOTALL,
-                    )
-                    if match:
-                        question = match.group(1).strip()
-                        answer = match.group(2).strip()
-                        if await add_or_update_qa_pair(group_id, question, answer):
-                            success_count += 1
+                for entry in entries:
+                    if entry.strip():
+                        parts = entry.strip().split(" ", 1)
+                        if len(parts) == 2:
+                            question = parts[0].strip()
+                            answer = parts[1]  # 保留原始格式，包括换行符
+                            if await add_or_update_qa_pair(group_id, question, answer):
+                                success_count += 1
 
                 content = (
                     f"[CQ:reply,id={message_id}]"
