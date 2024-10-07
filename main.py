@@ -284,7 +284,15 @@ async def identify_question(websocket, group_id, message_id, raw_message):
                     .replace("&#93;", "]")
                     .replace("\\n", "\n")
                 )
-                content = f"[CQ:reply,id={message_id}]匹配到的问题：{best_match[0]}\n\n{answer}\n\n[+]匹配通道：总体相似度匹配\n[+]与数据库匹配相似度：{best_match[2]}\n[+]技术支持：www.w1ndys.top"
+                content = (
+                    f"[CQ:reply,id={message_id}]"
+                    + f"匹配到的问题：{best_match[0]}\n\n"
+                    + f"{answer}\n\n"
+                    + f"[+]匹配通道：总体相似度匹配\n"
+                    + f"[+]与数据库匹配相似度：{best_match[2]}\n"
+                    + f"[+]技术支持：www.w1ndys.top"
+                )
+
                 await send_group_msg(websocket, group_id, content)
                 return True  # 返回True表示识别到问题
 
