@@ -394,6 +394,7 @@ async def handle_qasystem_message_group(websocket, msg):
 # 统一事件处理入口
 async def handle_events(websocket, msg):
     """统一事件处理入口"""
+    post_type = msg.get("post_type", "response")  # 添加默认值
     try:
         # 处理回调事件
         if msg.get("status") == "ok":
